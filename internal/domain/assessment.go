@@ -221,7 +221,7 @@ func (t *ClearanceTrial) VerifyRecovery(r RecoveryRecord, now time.Time) error {
 		if p, ok := last[s.SensorID]; ok && !s.SampledAt.After(p) {
 			return Validation("samples.sampled_at", "传感器 %s 恢复采样时间必须严格递增", s.SensorID)
 		}
-		if s.RelativeHumidity < 0 || s.RelativeHumidity > 100 || s.CO2PPM <= 0 {
+		if !readingWithinPhysicalRange(s.TemperatureC, s.RelativeHumidity, s.CO2PPM) {
 			return Validation("samples", "恢复读数超出物理范围")
 		}
 		last[s.SensorID] = s.SampledAt

@@ -44,6 +44,11 @@ func ValidateThresholds(t Thresholds) error {
 	if t.MaxTemperatureDeltaC <= 0 || t.MaxHumidityDeltaPct <= 0 || t.MaxCO2PPM <= 0 {
 		return Validation("thresholds", "停止阈值必须为正数")
 	}
+	// 阈值参与 round3 与百分比安全余量计算（margin*100/limit），缺乏上界会使数量级极大但 JSON
+	// 可表示的有限阈值在判定派生计算中溢出为 ±Inf，无法编码为 JSON。
+	if t.MaxTemperatureDeltaC > 100000 || t.MaxHumidityDeltaPct > 100000 || t.MaxCO2PPM > 100000 {
+		return Validation("thresholds", "停止阈值超出物理合理范围")
+	}
 	if t.RecoveryTempDeltaC <= 0 || t.RecoveryTempDeltaC >= t.MaxTemperatureDeltaC {
 		return Validation("thresholds.recovery_temperature_delta_c", "温度恢复阈值必须小于停止阈值")
 	}
@@ -64,6 +69,9 @@ func ValidateThresholds(t Thresholds) error {
 	}
 	if t.MaxBaselineTemperatureRangeC <= 0 || t.MaxBaselineHumidityRangePct <= 0 || t.MaxBaselineCO2RangePPM <= 0 {
 		return Validation("thresholds", "基线波动限值必须为正数")
+	}
+	if t.MaxBaselineTemperatureRangeC > 100000 || t.MaxBaselineHumidityRangePct > 100000 || t.MaxBaselineCO2RangePPM > 100000 {
+		return Validation("thresholds", "基线波动限值超出物理合理范围")
 	}
 	if t.MaxBaselineStalenessMinutes < 1 || t.MaxBaselineStalenessMinutes > 10080 {
 		return Validation("thresholds.max_baseline_staleness_minutes", "基线最大陈旧时长必须在 1 到 10080 分钟之间")

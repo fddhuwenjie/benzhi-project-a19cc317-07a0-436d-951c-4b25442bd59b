@@ -21,6 +21,14 @@ type CreateInput struct {
 
 func round3(v float64) float64 { return math.Round(v*1000) / 1000 }
 
+// readingWithinPhysicalRange 验证单次传感器读数的物理范围。温度缺失边界会使数量级极大但
+// JSON 可表示的有限读数通过校验，随后在阈值判定与暴露积分的派生计算中溢出为 +Inf/-Inf，
+// 导致持久化层无法编码为 JSON。这里选取的上下界覆盖任何合理的洞穴监测场景，同时保证
+// round3 与梯形积分等派生运算不会溢出 MaxFloat64。
+func readingWithinPhysicalRange(temperatureC, relativeHumidity, co2PPM float64) bool {
+	return temperatureC >= -100 && temperatureC <= 100 && relativeHumidity >= 0 && relativeHumidity <= 100 && co2PPM > 0 && co2PPM <= 100000
+}
+
 func median(values []float64) float64 {
 	x := append([]float64(nil), values...)
 	sort.Float64s(x)
@@ -77,7 +85,7 @@ func freezeBaseline(b BaselineProfile, windowStart time.Time, limits Thresholds)
 			if j > 0 && !r.SampledAt.After(s.Readings[j-1].SampledAt) {
 				return b, Validation(field+".readings.sampled_at", "传感器 %s 基线时间必须严格递增", s.SensorID)
 			}
-			if r.RelativeHumidity < 0 || r.RelativeHumidity > 100 || r.CO2PPM <= 0 {
+			if !readingWithinPhysicalRange(r.TemperatureC, r.RelativeHumidity, r.CO2PPM) {
 				return b, Validation(field+".readings", "传感器 %s 基线读数超出物理范围", s.SensorID)
 			}
 			temp, humidity, co2 = append(temp, r.TemperatureC), append(humidity, r.RelativeHumidity), append(co2, r.CO2PPM)
@@ -346,7 +354,7 @@ func (t *ClearanceTrial) AddObservation(o LoadStageObservation) error {
 		if p, ok := last[s.SensorID]; ok && !s.SampledAt.After(p) {
 			return Validation("observation.samples.sampled_at", "传感器 %s 采样时间必须严格递增", s.SensorID)
 		}
-		if s.RelativeHumidity < 0 || s.RelativeHumidity > 100 || s.CO2PPM <= 0 {
+		if !readingWithinPhysicalRange(s.TemperatureC, s.RelativeHumidity, s.CO2PPM) {
 			return Validation("observation.samples", "采样读数超出物理范围")
 		}
 		last[s.SensorID] = s.SampledAt
