@@ -19,6 +19,12 @@ type CreateInput struct {
 	Now            time.Time
 }
 
+// MaxDurationMinutes 是负荷观测允许声明的最长持续分钟数。
+// 它同时小于 math.MaxInt64/60 与 math.MaxInt64/(60*1e9)，因此
+// int64(DurationMinutes)*60 与 time.Duration(DurationMinutes)*time.Minute
+// 都不会溢出有符号 64 位，覆盖计算与换算只能使用已验证且不溢出的时长。
+const MaxDurationMinutes = 1 << 24
+
 func round3(v float64) float64 { return math.Round(v*1000) / 1000 }
 
 func median(values []float64) float64 {
@@ -213,6 +219,9 @@ func coverageFor(t *ClearanceTrial, o LoadStageObservation) (SamplingCompletenes
 	if o.SamplingIntervalSeconds < 1 || o.SamplingIntervalSeconds > 3600 {
 		return SamplingCompletenessSummary{}, Validation("observation.sampling_interval_seconds", "采样间隔必须在 1 到 3600 秒之间")
 	}
+	if o.DurationMinutes <= 0 || o.DurationMinutes > MaxDurationMinutes {
+		return SamplingCompletenessSummary{}, Validation("observation.duration_minutes", "声明持续时间 %d 分钟超出安全换算范围（1 到 %d 分钟）", o.DurationMinutes, MaxDurationMinutes)
+	}
 	spanSeconds := int64(o.DurationMinutes) * 60
 	interval := int64(o.SamplingIntervalSeconds)
 	expected := int((spanSeconds+interval-1)/interval) + 1
@@ -310,6 +319,9 @@ func (t *ClearanceTrial) AddObservation(o LoadStageObservation) error {
 	}
 	if o.VisitorCount <= 0 || o.DurationMinutes <= 0 {
 		return Validation("observation.visitor_count", "访客人数和持续时间必须为正数")
+	}
+	if o.DurationMinutes > MaxDurationMinutes {
+		return Validation("observation.duration_minutes", "声明持续时间 %d 分钟超出安全换算范围（最多 %d 分钟）", o.DurationMinutes, MaxDurationMinutes)
 	}
 	if o.ObserverID == "" {
 		return Validation("observation.observer_id", "采样人员不能为空")

@@ -36,6 +36,9 @@ func ValidateIntegrity(t *ClearanceTrial) error {
 		if o.ObserverID == "" || !o.EndedAt.After(o.StartedAt) {
 			return corrupt("阶段观察人员或时间范围无效")
 		}
+		if o.DurationMinutes <= 0 || o.DurationMinutes > MaxDurationMinutes {
+			return corrupt("阶段声明时长超出安全换算范围")
+		}
 		if time.Duration(o.DurationMinutes)*time.Minute < o.EndedAt.Sub(o.StartedAt) {
 			return corrupt("阶段声明时长短于观测时长")
 		}
