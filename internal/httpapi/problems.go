@@ -25,11 +25,14 @@ func writeProblem(w http.ResponseWriter, err error) {
 	switch {
 	case errors.As(err, &de):
 		p = Problem{Code: string(de.Code), Message: de.Message, Field: de.Field, Details: de.Details}
-		if de.Code == domain.CodeValidation {
+		switch de.Code {
+		case domain.CodeValidation:
 			status = http.StatusUnprocessableEntity
-		} else if de.Code == domain.CodeInvalidState {
+		case domain.CodeInvalidState:
 			status = http.StatusConflict
-		} else {
+		case domain.CodeCorrupt:
+			status = http.StatusServiceUnavailable
+		default:
 			status = http.StatusBadRequest
 		}
 	case errors.As(err, &rc):

@@ -149,7 +149,7 @@ func VerifyPackage(p Package) Verification {
 func (s *Service) VerifyCurrent(ctx context.Context, id string) (Verification, error) {
 	p, err := s.Build(ctx, id)
 	if err != nil {
-		return Verification{}, fmt.Errorf("构建待校验证据包: %v", err)
+		return Verification{}, fmt.Errorf("构建待校验证据包: %w", err)
 	}
 	return VerifyPackage(p), nil
 }

@@ -27,27 +27,27 @@ func calculate(t domain.ClearanceTrial, events []domain.AuditEvent) string {
 
 func (s *Service) Build(ctx context.Context, id string) (Package, error) {
 	if err := s.repo.Verify(ctx, id); err != nil {
-		return Package{}, fmt.Errorf("验证持久化证据: %v", err)
+		return Package{}, fmt.Errorf("验证持久化证据: %w", err)
 	}
 	t, err := s.repo.Get(ctx, id)
 	if err != nil {
-		return Package{}, fmt.Errorf("读取冻结试验: %v", err)
+		return Package{}, fmt.Errorf("读取冻结试验: %w", err)
 	}
 	if !t.Terminal() {
 		return Package{}, domain.InvalidState("试验尚未终结，不能生成冻结证据包")
 	}
 	events, err := s.repo.Timeline(ctx, id)
 	if err != nil {
-		return Package{}, fmt.Errorf("读取审计时间线: %v", err)
+		return Package{}, fmt.Errorf("读取审计时间线: %w", err)
 	}
 	digest := calculate(*t, events)
 	if t.Status == domain.StatusPermitted {
 		if err := s.repo.SetPermitEvidenceDigest(ctx, id, digest); err != nil {
-			return Package{}, fmt.Errorf("冻结许可证据摘要: %v", err)
+			return Package{}, fmt.Errorf("冻结许可证据摘要: %w", err)
 		}
 		t, err = s.repo.Get(ctx, id)
 		if err != nil {
-			return Package{}, fmt.Errorf("重新读取冻结试验: %v", err)
+			return Package{}, fmt.Errorf("重新读取冻结试验: %w", err)
 		}
 	}
 	return Package{FormatVersion: FormatVersion, TrialID: id, GeneratedAt: t.FinalizedAt.UTC(), Trial: *t, AuditEvents: events, AuditChainDigest: store.ChainDigest(events), ContentDigest: digest}, nil
