@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"sync"
 
 	"cave-microclimate-clearance/internal/domain"
 	"cave-microclimate-clearance/internal/store"
@@ -19,34 +18,10 @@ type Repository interface {
 
 type Service struct {
 	repo Repository
-
-	verificationMu    sync.RWMutex
-	verificationCache map[string]Verification
 }
 
 func NewService(repo Repository) *Service {
-	return &Service{repo: repo, verificationCache: make(map[string]Verification)}
-}
-
-func cloneVerification(v Verification) Verification {
-	copy := v
-	copy.Problems = append([]string(nil), v.Problems...)
-	copy.SemanticReconciliation.Issues = append([]SemanticIssue(nil), v.SemanticReconciliation.Issues...)
-	copy.SemanticReconciliation.EventCounts = append([]SemanticEventCount(nil), v.SemanticReconciliation.EventCounts...)
-	return copy
-}
-
-func (s *Service) cachedVerification(id string) (Verification, bool) {
-	s.verificationMu.RLock()
-	defer s.verificationMu.RUnlock()
-	v, ok := s.verificationCache[id]
-	return cloneVerification(v), ok
-}
-
-func (s *Service) rememberVerification(id string, v Verification) {
-	s.verificationMu.Lock()
-	defer s.verificationMu.Unlock()
-	s.verificationCache[id] = cloneVerification(v)
+	return &Service{repo: repo}
 }
 
 func calculate(t domain.ClearanceTrial, events []domain.AuditEvent) string {

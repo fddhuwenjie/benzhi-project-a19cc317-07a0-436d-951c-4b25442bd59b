@@ -146,14 +146,9 @@ func VerifyPackage(p Package) Verification {
 }
 
 func (s *Service) VerifyCurrent(ctx context.Context, id string) (Verification, error) {
-	if cached, ok := s.cachedVerification(id); ok {
-		return cached, nil
-	}
 	p, err := s.Build(ctx, id)
 	if err != nil {
 		return Verification{}, err
 	}
-	verification := VerifyPackage(p)
-	s.rememberVerification(id, verification)
-	return verification, nil
+	return VerifyPackage(p), nil
 }
