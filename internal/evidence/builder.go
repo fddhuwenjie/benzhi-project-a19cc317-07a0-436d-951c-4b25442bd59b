@@ -25,29 +25,41 @@ func calculate(t domain.ClearanceTrial, events []domain.AuditEvent) string {
 }
 
 func (s *Service) Build(ctx context.Context, id string) (Package, error) {
-	if err := s.repo.Verify(context.Background(), id); err != nil {
+	if err := ctx.Err(); err != nil {
 		return Package{}, err
 	}
-	t, err := s.repo.Get(context.Background(), id)
+	if err := s.repo.Verify(ctx, id); err != nil {
+		return Package{}, err
+	}
+	t, err := s.repo.Get(ctx, id)
 	if err != nil {
 		return Package{}, err
 	}
 	if !t.Terminal() {
 		return Package{}, domain.InvalidState("试验尚未终结，不能生成冻结证据包")
 	}
-	events, err := s.repo.Timeline(context.Background(), id)
+	if err := ctx.Err(); err != nil {
+		return Package{}, err
+	}
+	events, err := s.repo.Timeline(ctx, id)
 	if err != nil {
 		return Package{}, err
 	}
 	digest := calculate(*t, events)
 	if t.Status == domain.StatusPermitted {
-		if err := s.repo.SetPermitEvidenceDigest(context.Background(), id, digest); err != nil {
+		if err := ctx.Err(); err != nil {
 			return Package{}, err
 		}
-		t, err = s.repo.Get(context.Background(), id)
+		if err := s.repo.SetPermitEvidenceDigest(ctx, id, digest); err != nil {
+			return Package{}, err
+		}
+		t, err = s.repo.Get(ctx, id)
 		if err != nil {
 			return Package{}, err
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return Package{}, err
 	}
 	return Package{FormatVersion: FormatVersion, TrialID: id, GeneratedAt: t.FinalizedAt.UTC(), Trial: *t, AuditEvents: events, AuditChainDigest: store.ChainDigest(events), ContentDigest: digest}, nil
 }

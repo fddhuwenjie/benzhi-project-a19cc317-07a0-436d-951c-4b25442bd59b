@@ -146,7 +146,7 @@ func VerifyPackage(p Package) Verification {
 }
 
 func (s *Service) VerifyCurrent(ctx context.Context, id string) (Verification, error) {
-	p, err := s.Build(context.Background(), id)
+	p, err := s.Build(ctx, id)
 	if err != nil {
 		return Verification{}, err
 	}
